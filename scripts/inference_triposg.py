@@ -14,6 +14,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from triposg.pipelines.pipeline_triposg import TripoSGPipeline
 from image_process import prepare_image
+from device_utils import add_device_args, resolve_device
 from briarmbg import BriaRMBG
 
 import pymeshlab
@@ -66,9 +67,6 @@ def simplify_mesh(mesh: trimesh.Trimesh, n_faces):
         return mesh
 
 if __name__ == "__main__":
-    device = "cuda"
-    dtype = torch.float16
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--image-input", type=str, required=True)
     parser.add_argument("--output-path", type=str, default="./output.glb")
@@ -76,7 +74,9 @@ if __name__ == "__main__":
     parser.add_argument("--num-inference-steps", type=int, default=50)
     parser.add_argument("--guidance-scale", type=float, default=7.0)
     parser.add_argument("--faces", type=int, default=-1)
+    add_device_args(parser)
     args = parser.parse_args()
+    device, dtype = resolve_device(args.device, args.dtype)
 
     # download pretrained weights
     triposg_weights_dir = "pretrained_weights/TripoSG"

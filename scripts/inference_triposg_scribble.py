@@ -13,6 +13,7 @@ from PIL import Image
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from triposg.pipelines.pipeline_triposg_scribble import TripoSGScribblePipeline
+from device_utils import add_device_args, resolve_device
 
 
 
@@ -44,9 +45,6 @@ def run_triposg_scribble(
 
 
 if __name__ == "__main__":
-    device = "cuda"
-    dtype = torch.float16
-
     parser = argparse.ArgumentParser()
     parser.add_argument("--image-input", type=str, required=True)
     parser.add_argument("--prompt", type=str, required=True)
@@ -56,7 +54,9 @@ if __name__ == "__main__":
     # feel free to tune the scribble confidence, 0.3-0.5 often gives good results for hand-drawn sketches
     parser.add_argument("--scribble-conf", type=float, default=0.4)
     parser.add_argument("--prompt-conf", type=float, default=1.0)
+    add_device_args(parser)
     args = parser.parse_args()
+    device, dtype = resolve_device(args.device, args.dtype)
 
     # download pretrained weights
     triposg_scribble_weights_dir = "pretrained_weights/TripoSG-scribble"
