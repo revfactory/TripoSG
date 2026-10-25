@@ -6,10 +6,11 @@ import trimesh
 from triposg.inference_utils import hierarchical_extract_geometry
 from triposg.models.autoencoders import TripoSGVAEModel
 from huggingface_hub import snapshot_download
+from scripts.device_utils import add_device_args, resolve_device
 
 
 
-def load_surface(data_path, num_pc=204800):
+def load_surface(data_path, num_pc=204800, device=None):
     data = np.load(data_path, allow_pickle=True).tolist()
     surface = data["surface_points"]  # Nx3
     normal = data["surface_normals"]  # Nx3
@@ -18,17 +19,19 @@ def load_surface(data_path, num_pc=204800):
     ind = rng.choice(surface.shape[0], num_pc, replace=False)
     surface = torch.FloatTensor(surface[ind])
     normal = torch.FloatTensor(normal[ind])
-    surface = torch.cat([surface, normal], dim=-1).unsqueeze(0).cuda()
+    if device is None:
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    surface = torch.cat([surface, normal], dim=-1).unsqueeze(0).to(device)
 
     return surface
 
 
 if __name__ == "__main__":
-    device = "cuda"
-    dtype = torch.float16
     parser = argparse.ArgumentParser()
     parser.add_argument("--surface-input", type=str, required=True)
+    add_device_args(parser)
     args = parser.parse_args()
+    device, dtype = resolve_device(args.device, args.dtype)
 
     # download pretrained weights
     triposg_weights_dir = "pretrained_weights/TripoSG"
@@ -41,7 +44,7 @@ if __name__ == "__main__":
 
     # load surface from sdf and encode
     surface = load_surface(
-        args.surface_input, num_pc=204800
+        args.surface_input, num_pc=204800, device=device
     ).to(device, dtype=dtype)
     sample = vae.encode(surface).latent_dist.sample()
     
