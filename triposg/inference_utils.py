@@ -4,10 +4,19 @@ import torch.nn as nn
 import scipy.ndimage
 from skimage import measure
 from einops import repeat
-from diso import DiffDMC
+try:
+    from diso import DiffDMC  # optional CUDA extension, only needed by flash_extract_geometry
+except (ImportError, OSError):
+    DiffDMC = None
 import torch.nn.functional as F
 
-from triposg.utils.typing import *
+from typing import Callable, List, Tuple, Union
+
+
+def flash_extraction_available(device) -> bool:
+    """Whether flash_extract_geometry can run on `device`: it needs diso, which only supports CUDA."""
+    return DiffDMC is not None and torch.device(device).type == "cuda"
+
 
 def generate_dense_grid_points_gpu(bbox_min: torch.Tensor,
                                    bbox_max: torch.Tensor,
@@ -98,7 +107,7 @@ def find_candidates_band(occupancy_grid: torch.Tensor, band_threshold: float, n_
     return core_mesh_coords 
 
 def expand_edge_region_fast(edge_coords, grid_size):
-    expanded_tensor = torch.zeros(grid_size, grid_size, grid_size, device='cuda', dtype=torch.float16, requires_grad=False)
+    expanded_tensor = torch.zeros(grid_size, grid_size, grid_size, device=edge_coords.device, dtype=torch.float16, requires_grad=False)
     expanded_tensor[edge_coords[:, 0], edge_coords[:, 1], edge_coords[:, 2]] = 1
     if grid_size < 512:
         kernel_size = 5
@@ -327,6 +336,11 @@ def flash_extract_geometry(
     mini_grid_num: int = 4,
     **kwargs,
 ):
+    if DiffDMC is None:
+        raise ImportError(
+            "flash_extract_geometry requires the `diso` package, which only supports CUDA. Install it with "
+            "`pip install diso --no-build-isolation` after installing torch, or use hierarchical_extract_geometry."
+        )
     geo_decoder = vae.decoder
     device = latents.device
     dtype = latents.dtype

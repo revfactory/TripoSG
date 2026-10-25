@@ -16,7 +16,7 @@ from transformers import (
     BitImageProcessor,
     Dinov2Model,
 )
-from ..inference_utils import hierarchical_extract_geometry, flash_extract_geometry
+from ..inference_utils import hierarchical_extract_geometry, flash_extract_geometry, flash_extraction_available
 
 from ..models.autoencoders import TripoSGVAEModel
 from ..models.transformers import TripoSGDiTModel
@@ -295,6 +295,16 @@ class TripoSGPipeline(DiffusionPipeline, TransformerDiffusionMixin):
 
 
         # 7. decoder mesh
+        if use_flash_decoder and not flash_extraction_available(latents.device):
+            logger.warning(
+                "The flash decoder needs the optional `diso` package and a CUDA device, but diso is not "
+                f"installed or the latents are on '{latents.device}'. Falling back to hierarchical extraction "
+                f"(dense_octree_depth={dense_octree_depth}, hierarchical_octree_depth={hierarchical_octree_depth}); "
+                "flash_octree_depth is not used. To use the flash decoder on a CUDA GPU, run "
+                "`pip install diso --no-build-isolation` after installing torch. "
+                "Pass use_flash_decoder=False to silence this warning."
+            )
+            use_flash_decoder = False
         if not use_flash_decoder:
             geometric_func = lambda x: self.vae.decode(latents, sampled_points=x).sample
             output = hierarchical_extract_geometry(
