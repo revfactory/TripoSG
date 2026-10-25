@@ -58,6 +58,12 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/{your
 pip install -r requirements.txt
 ```
 
+To use the flash decoder (the default `use_flash_decoder=True`) on a CUDA GPU, install `diso` after installing torch:
+```bash
+pip install diso --no-build-isolation
+```
+Without diso, or on a non-CUDA device, the pipelines log a warning and fall back to hierarchical extraction (`dense_octree_depth`, `hierarchical_octree_depth`), which is slower.
+
 ## 💡 Quick Start
 
 Generate a 3D mesh from an image:
